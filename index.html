@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Study Rank Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--ink:#14213d;--mute:#5d6a85;--line:#dfe4ef;--gold:#f2a900;--teal:#12857a;--bad:#c0392b;--on-gold:#14213d;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1424;--card:#16203a;--ink:#eef1f8;--mute:#9aa7c4;--line:#2a3658;--gold:#ffc43d;--teal:#3fc7b8;--bad:#ff7a6b}}
+:root[data-theme="dark"]{--bg:#0d1424;--card:#16203a;--ink:#eef1f8;--mute:#9aa7c4;--line:#2a3658;--gold:#ffc43d;--teal:#3fc7b8;--bad:#ff7a6b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1,h2,.rank{font-family:Rubik,system-ui,sans-serif}
+h2{font-size:1.05rem;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.hero{border-color:var(--gold);border-width:2px}
+.who{color:var(--mute);font-size:.9rem}
+.rank{font-size:2.4rem;font-weight:700;line-height:1.1;margin:4px 0 2px}
+.pts{color:var(--mute)}
+.bar{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin:14px 0 8px}
+.bar i{height:14px;border-radius:4px;background:var(--line)}
+.bar i.on{background:var(--gold)}
+.need{font-weight:500}
+.toast{background:var(--teal);color:#fff;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-weight:700}
+.row{display:flex;gap:8px}
+input{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px}
+input:focus,button:focus-visible{outline:3px solid var(--gold);outline-offset:1px}
+input.pct{width:96px;flex:none}
+button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:11px 14px;cursor:pointer;background:var(--gold);color:var(--on-gold)}
+button.ghost{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+button.done{background:var(--teal);color:#fff;padding:8px 12px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}
+li:first-child{border-top:0}
+.t{min-width:0;overflow-wrap:anywhere}
+.w{color:var(--mute);font-size:.9rem}
+.empty{color:var(--mute);margin:0}
+.msg{color:var(--bad);margin:8px 0 0;min-height:1.2em;font-size:.9rem}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+var KEY="study_rank_v1", STEP=100;
+var S={name:"",points:0,plan:[],tasks:[]}, toast="", err="", askReset=false;
+try{var r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r));}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+var N=[],R=["I","II","III","IV"];
+[["Bronze",3],["Silver",3],["Gold",4],["Platinum",4],["Diamond",4]].forEach(function(t){for(var i=0;i<t[1];i++)N.push(t[0]+" "+R[i]);});
+N.push("Heroic","Elite Heroic","Master","Elite Master","Grandmaster");
+function info(p){var i=Math.min(Math.floor(p/STEP),N.length-1),top=i===N.length-1;
+ var done=top?100:p-i*STEP;return{i:i,rank:N[i],next:top?null:N[i+1],done:done,need:100-done};}
+function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML;}
+function val(id){return document.getElementById(id).value.trim();}
+
+function render(){
+ var a=document.getElementById("app");
+ if(!S.name){a.innerHTML='<h1>Study Rank Tracker</h1><div class="card"><h2>Enter your name</h2><input id="nm" placeholder="Your name" maxlength="30"><p class="msg">'+esc(err)+'</p><button onclick="start()">Start</button></div>';return;}
+ var f=info(S.points),segs="";
+ for(var k=0;k<10;k++)segs+='<i class="'+(f.done>=(k+1)*10?"on":"")+'"></i>';
+ var h=(toast?'<div class="toast">'+esc(toast)+'</div>':"")+
+ '<div class="card hero"><div class="who">'+esc(S.name)+'</div><div class="rank">'+f.rank+'</div><div class="pts">'+S.points+' points</div>'+
+ '<div class="bar">'+segs+'</div>'+
+ (f.next?'<div class="need">'+f.done+'% done. '+f.need+'% more task weightage to reach '+f.next+'.</div>':'<div class="need">You reached the top rank.</div>')+'</div>'+
+ '<div class="card"><h2>Add a task</h2><div class="row"><input id="tn" placeholder="Task name" maxlength="60"><input id="tp" class="pct" type="number" inputmode="numeric" min="1" max="100" placeholder="%"></div><p class="msg">'+esc(err)+'</p><button onclick="addTask()">Add task</button></div>'+
+ '<div class="card"><h2>My tasks</h2>'+(S.plan.length?'<ul>'+S.plan.map(function(t,i){return'<li><div class="t">'+esc(t.task)+'<div class="w">'+t.percent+'% weightage</div></div><button class="done" onclick="complete('+i+')">Complete</button></li>';}).join("")+'</ul>':'<p class="empty">No tasks yet. Add your first task above.</p>')+'</div>'+
+ '<div class="card"><h2>History</h2>'+(S.tasks.length?'<ul>'+S.tasks.slice().reverse().map(function(t){return'<li><div class="t">'+esc(t.task)+'<div class="w">'+t.percent+'%</div></div><b>+'+t.points+'</b></li>';}).join("")+'</ul>':'<p class="empty">Completed tasks will show here.</p>')+'</div>'+
+ '<div class="card"><h2>New user</h2>'+(askReset?'<p class="empty">This deletes all tasks and history and resets points to 0.</p><input id="rn" placeholder="New user name" maxlength="30" style="margin:10px 0"><div class="row"><button class="ghost" onclick="doReset()">Delete everything</button><button onclick="askReset=false;render()" style="background:var(--line);color:var(--ink)">Cancel</button></div>':'<button class="ghost" onclick="askReset=true;render()">Delete history</button>')+'</div>';
+ a.innerHTML=h;toast="";
+}
+function start(){var n=val("nm");if(!n){err="Enter a name to start.";render();return;}err="";S.name=n;save();render();}
+function addTask(){var n=val("tn"),p=parseInt(val("tp"),10);
+ if(!n){err="Enter a task name.";render();return;}
+ if(!(p>=1&&p<=100)){err="Weightage must be from 1 to 100.";render();document.getElementById("tn").value=n;return;}
+ err="";S.plan.push({task:n,percent:p});save();render();}
+function complete(i){var t=S.plan.splice(i,1)[0],old=info(S.points).rank;
+ S.points+=t.percent;S.tasks.push({task:t.task,percent:t.percent,points:t.percent});
+ var nw=info(S.points).rank;toast=nw!==old?"Rank up! "+old+" to "+nw:"+"+t.percent+" points for "+t.task;
+ save();render();}
+function doReset(){var n=val("rn")||"Student";S={name:n,points:0,plan:[],tasks:[]};askReset=false;save();render();}
+render();
+</script>
+</body>
+</html>
